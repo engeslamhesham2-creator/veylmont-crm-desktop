@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-drag: none; }
+      html, body {
+        height: 100%;
+        overflow: hidden;
+        font-family: "Marcellus", Georgia, "Times New Roman", serif;
+        background: radial-gradient(130% 100% at 50% -10%, #103349 0%, #07202f 45%, #02101c 100%);
+        -webkit-app-region: drag;
+      }
+      .stars { position: fixed; inset: 0; background-image:
+        radial-gradient(1px 1px at 20% 30%, rgba(201,162,77,.5), transparent),
+        radial-gradient(1px 1px at 70% 60%, rgba(241,236,224,.35), transparent),
+        radial-gradient(1px 1px at 40% 80%, rgba(201,162,77,.35), transparent),
+        radial-gradient(1px 1px at 85% 25%, rgba(241,236,224,.3), transparent),
+        radial-gradient(1px 1px at 55% 15%, rgba(201,162,77,.4), transparent);
+        opacity: .7; animation: twinkle 4s ease-in-out infinite;
+      }
+      .wrap {
+        position: relative; height: 100%;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+        animation: rise .8s cubic-bezier(.22,1,.36,1) both;
+      }
+      .ring { position: relative; display: grid; place-items: center; }
+      .ring::before {
+        content: ""; position: absolute; width: 140px; height: 140px; border-radius: 50%;
+        border: 1px solid rgba(201,162,77,.18);
+        box-shadow: 0 0 60px -6px rgba(201,162,77,.45) inset, 0 0 80px -20px rgba(201,162,77,.5);
+        animation: spin 9s linear infinite;
+      }
+      .logo {
+        width: 104px; height: 104px; border-radius: 22px; object-fit: cover;
+        box-shadow: 0 18px 50px -14px rgba(0,0,0,.7), 0 0 50px -8px rgba(201,162,77,.45);
+        animation: breathe 3s ease-in-out infinite;
+      }
+      .word { color: #f1ece0; font-size: 32px; letter-spacing: .22em; line-height: 1; margin-top: 6px; }
+      .word b { color: #c9a24d; font-weight: 400; }
+      .tag { color: #c9a24d; font-size: 11px; letter-spacing: .55em; text-transform: uppercase; }
+      .bar {
+        margin-top: 16px; width: 190px; height: 2px; border-radius: 4px;
+        background: rgba(201,162,77,.14); overflow: hidden; position: relative;
+      }
+      .bar::after {
+        content: ""; position: absolute; top: 0; bottom: 0; width: 45%;
+        background: linear-gradient(90deg, transparent, #c9a24d, transparent);
+        animation: slide 1.4s ease-in-out infinite;
+      }
+      @keyframes breathe { 0%,100% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.045); filter: brightness(1.12); } }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes slide { 0% { left: -45%; } 100% { left: 100%; } }
+      @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+      @keyframes twinkle { 0%,100% { opacity: .5; } 50% { opacity: .85; } }
+    </style>
+  </head>
+  <body>
+    <div class="stars"></div>
+    <div class="wrap">
+      <div class="ring"><img class="logo" src="build/icon.png" alt="Veylmont" /></div>
+      <div class="word">VEYL<b>MONT</b></div>
+      <div class="tag">CRM</div>
+      <div class="bar"></div>
+    </div>
+  </body>
+</html>

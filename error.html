@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+      html, body { height: 100%; font-family: "Marcellus", Georgia, serif;
+        background: radial-gradient(130% 100% at 50% -10%, #103349 0%, #07202f 45%, #02101c 100%); color: #f1ece0; }
+      .wrap { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; animation: rise .6s cubic-bezier(.22,1,.36,1) both; }
+      .logo { width: 84px; height: 84px; border-radius: 18px; object-fit: cover; box-shadow: 0 0 50px -10px rgba(201,162,77,.45); opacity: .9; }
+      h1 { font-size: 22px; letter-spacing: .02em; }
+      p { color: #93a7b3; font-size: 13px; max-width: 360px; line-height: 1.7; font-family: system-ui, sans-serif; }
+      .btn { margin-top: 8px; cursor: pointer; border: none; padding: 11px 26px; border-radius: 6px;
+        background: #c9a24d; color: #02101c; font-size: 14px; font-family: system-ui, sans-serif; font-weight: 600;
+        transition: transform .2s, background .2s; -webkit-app-region: no-drag; }
+      .btn:hover { transform: translateY(-2px); background: #d8b25c; }
+      .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#c9a24d; margin-inline-end:6px; animation: pulse 1.3s ease-in-out infinite; }
+      .small { font-size: 11px; color: #5d6b72; font-family: system-ui, sans-serif; }
+      @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+      @keyframes pulse { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" style="-webkit-app-region: drag;">
+      <img class="logo" src="build/icon.png" alt="" />
+      <h1>تعذّر الاتصال بالخادم</h1>
+      <p>الـ CRM محتاج اتصال بالإنترنت. اتأكد إنك أونلاين وحاول تاني.<br />Couldn't reach the server — check your connection.</p>
+      <button class="btn" id="retry">إعادة المحاولة · Retry</button>
+      <div class="small"><span class="dot"></span><span id="status">بيحاول تلقائيًا…</span></div>
+    </div>
+    <script>
+      const url = new URLSearchParams(location.search).get("u") || "https://keelmont.com";
+      const go = () => { location.href = url; };
+      document.getElementById("retry").addEventListener("click", go);
+      window.addEventListener("online", go);
+      // auto-retry every 6s while offline
+      setInterval(() => { if (navigator.onLine) go(); }, 6000);
+    </script>
+  </body>
+</html>
