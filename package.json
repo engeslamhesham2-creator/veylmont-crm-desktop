@@ -60,7 +60,10 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": "universal"
+        }
       ],
       "icon": "build/icon.png",
       "category": "public.app-category.business"
