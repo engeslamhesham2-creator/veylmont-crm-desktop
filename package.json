@@ -37,7 +37,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "YOUR_GITHUB_USERNAME",
+        "owner": "engeslamhesham2-creator",
         "repo": "veylmont-crm-desktop"
       }
     ],
