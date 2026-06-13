@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, nativeImage, shell, session, Notification } = require("electron");
+const { app, BrowserWindow, Menu, Tray, nativeImage, shell, session, Notification, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 
@@ -184,13 +184,51 @@ if (!app.requestSingleInstanceLock()) {
     createWindow();
 
     if (autoUpdater) {
-      autoUpdater.on("update-downloaded", () => {
+      // Silent, in-app updates — the user never visits a website. The app
+      // downloads the update in the background, then offers a one-click restart.
+      autoUpdater.autoDownload = true;
+      autoUpdater.autoInstallOnAppQuit = true;
+      let promptShown = false;
+
+      autoUpdater.on("update-available", (info) => {
         if (Notification.isSupported()) {
-          new Notification({ title: "Veylmont CRM", body: "تحديث جديد جاهز — هيتثبّت عند إغلاق التطبيق." }).show();
+          new Notification({
+            title: "Veylmont CRM",
+            body: `جارِ تنزيل تحديث جديد (${info?.version || ""})…`
+          }).show();
         }
       });
-      autoUpdater.checkForUpdatesAndNotify().catch(() => {});
-      setInterval(() => autoUpdater.checkForUpdatesAndNotify().catch(() => {}), 6 * 60 * 60 * 1000);
+
+      autoUpdater.on("update-downloaded", (info) => {
+        if (promptShown) return;
+        promptShown = true;
+        const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
+        dialog
+          .showMessageBox(win, {
+            type: "info",
+            buttons: ["إعادة التشغيل الآن", "لاحقًا"],
+            defaultId: 0,
+            cancelId: 1,
+            title: "تحديث جديد جاهز",
+            message: `وصل تحديث جديد لتطبيق Veylmont CRM (${info?.version || ""}).`,
+            detail: "هيتم تثبيته وإعادة تشغيل البرنامج فورًا. لو اخترت لاحقًا، هيتثبّت تلقائيًا عند إغلاق البرنامج."
+          })
+          .then((res) => {
+            if (res.response === 0) {
+              app.isQuitting = true;
+              autoUpdater.quitAndInstall(); // installs + relaunches into the new version
+            }
+          })
+          .catch(() => {});
+      });
+
+      autoUpdater.on("error", () => {
+        /* offline / no feed — ignore, retry next check */
+      });
+
+      autoUpdater.checkForUpdates().catch(() => {});
+      // re-check every 2 hours so a freshly published release reaches users fast
+      setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 2 * 60 * 60 * 1000);
     }
 
     app.on("activate", () => {

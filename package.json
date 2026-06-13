@@ -1,6 +1,6 @@
 {
   "name": "veylmont-crm-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Veylmont CRM — desktop app (Windows & macOS)",
   "main": "main.js",
   "author": "Veylmont",
@@ -38,7 +38,8 @@
       {
         "provider": "github",
         "owner": "engeslamhesham2-creator",
-        "repo": "veylmont-crm-desktop"
+        "repo": "veylmont-crm-desktop",
+        "releaseType": "release"
       }
     ],
     "win": {
