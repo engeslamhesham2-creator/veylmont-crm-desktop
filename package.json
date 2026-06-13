@@ -1,6 +1,6 @@
 {
   "name": "veylmont-crm-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Veylmont CRM — desktop app (Windows & macOS)",
   "main": "main.js",
   "author": "Veylmont",
@@ -44,10 +44,11 @@
     ],
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        "nsis"
       ],
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "publisherName": "Veylmont",
+      "verifyUpdateCodeSignature": false
     },
     "nsis": {
       "oneClick": false,
