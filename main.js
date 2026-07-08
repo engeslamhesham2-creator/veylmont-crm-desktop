@@ -1,6 +1,7 @@
-const { app, BrowserWindow, Menu, Tray, nativeImage, shell, session, Notification, dialog } = require("electron");
+const { app, BrowserWindow, Menu, Tray, nativeImage, shell, session, Notification, dialog, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { execFile } = require("child_process");
 
 // The deployed CRM. Override at runtime with VEYLMONT_URL if the domain changes.
 const APP_URL = process.env.VEYLMONT_URL || "https://keelmont.com";
@@ -169,6 +170,68 @@ function createTray() {
   tray.on("click", showMain);
   tray.on("double-click", showMain);
 }
+
+// --- native geolocation (Windows Location Service) ---------------------------
+// navigator.geolocation inside Electron on Windows requires a Google API key
+// (Chromium network location provider) — without one it always fails. So the
+// renderer asks us (via preload) and we read the position straight from the
+// Windows Location Service with PowerShell's GeoCoordinateWatcher. Requires
+// Windows Settings → Privacy → Location to be ON for desktop apps.
+const GEO_PS_SCRIPT = `
+Add-Type -AssemblyName System.Device
+$w = New-Object System.Device.Location.GeoCoordinateWatcher([System.Device.Location.GeoPositionAccuracy]::Default)
+$w.Start()
+$deadline = (Get-Date).AddSeconds(18)
+while ((Get-Date) -lt $deadline) {
+  if ($w.Permission -eq 'Denied') { Write-Output 'DENIED'; $w.Stop(); exit }
+  $c = $w.Position.Location
+  if (-not $c.IsUnknown) {
+    $ci = [System.Globalization.CultureInfo]::InvariantCulture
+    Write-Output ("OK " + $c.Latitude.ToString($ci) + "," + $c.Longitude.ToString($ci) + "," + $c.HorizontalAccuracy.ToString($ci))
+    $w.Stop(); exit
+  }
+  Start-Sleep -Milliseconds 250
+}
+Write-Output 'TIMEOUT'
+$w.Stop()
+`;
+
+function windowsLocation() {
+  return new Promise((resolve, reject) => {
+    // -EncodedCommand (UTF-16LE base64) avoids every quoting/newline pitfall.
+    const encoded = Buffer.from(GEO_PS_SCRIPT, "utf16le").toString("base64");
+    execFile(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded],
+      { timeout: 25000, windowsHide: true },
+      (err, stdout) => {
+        const out = (stdout || "").trim();
+        if (out.startsWith("OK ")) {
+          const [lat, lng, acc] = out.slice(3).split(",").map(Number);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            // HorizontalAccuracy can be NaN on some providers — assume coarse.
+            resolve({ lat, lng, accuracy: Number.isFinite(acc) ? acc : 500 });
+            return;
+          }
+        }
+        if (out.includes("DENIED")) reject(new Error("GEO_DENIED"));
+        else if (out.includes("TIMEOUT") || (err && err.killed)) reject(new Error("GEO_TIMEOUT"));
+        else reject(new Error("GEO_UNAVAILABLE"));
+      }
+    );
+  });
+}
+
+ipcMain.handle("veylmont:get-location", async () => {
+  // macOS/Linux: Chromium geolocation generally works there — tell the page
+  // to fall back to navigator.geolocation.
+  if (process.platform !== "win32") return { error: "GEO_FALLBACK" };
+  try {
+    return await windowsLocation();
+  } catch (e) {
+    return { error: e.message || "GEO_UNAVAILABLE" };
+  }
+});
 
 // --- app lifecycle ----------------------------------------------------------
 if (!app.requestSingleInstanceLock()) {
