@@ -1,6 +1,6 @@
 {
   "name": "veylmont-crm-desktop",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Veylmont CRM — desktop app (Windows & macOS)",
   "main": "main.js",
   "author": "Veylmont",
@@ -14,7 +14,7 @@
     "dist:linux": "electron-builder --linux"
   },
   "devDependencies": {
-    "electron": "^33.2.1",
+    "electron": "~33.2.1",
     "electron-builder": "^25.1.8",
     "rcedit": "^5.0.2"
   },
@@ -56,9 +56,6 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "Veylmont CRM"
-    },
-    "portable": {
-      "artifactName": "Veylmont-CRM-${version}-portable.exe"
     },
     "mac": {
       "target": [

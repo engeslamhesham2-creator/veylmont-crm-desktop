@@ -6,6 +6,36 @@ const { execFile } = require("child_process");
 // The deployed CRM. Override at runtime with VEYLMONT_URL if the domain changes.
 const APP_URL = process.env.VEYLMONT_URL || "https://keelmont.com";
 
+// --- origin containment ------------------------------------------------------
+// Hostname allowlist (NOT string prefixes — "https://keelmont.com.evil.com"
+// must never pass). Only these hosts may load inside the shell, where the
+// preload bridge is attached.
+const ALLOWED_HOSTS = new Set([
+  "keelmont.com",
+  "www.keelmont.com",
+  "zljuhmdmjfznyeuvuxke.supabase.co", // auth redirects (exact project host)
+  ...(process.env.VEYLMONT_URL ? [new URL(process.env.VEYLMONT_URL).hostname] : [])
+]);
+
+function isAllowedUrl(url) {
+  try {
+    const u = new URL(url);
+    return (u.protocol === "https:" || u.protocol === "http:") && ALLOWED_HOSTS.has(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** Open outside the shell — but only protocols that can't execute anything. */
+function openExternalSafe(url) {
+  try {
+    const proto = new URL(url).protocol;
+    if (["https:", "http:", "mailto:", "tel:"].includes(proto)) shell.openExternal(url);
+  } catch {
+    /* unparseable — drop */
+  }
+}
+
 // Auto-update only activates in electron-builder / CI builds (deps bundled +
 // app-update.yml present). In the manual portable build it is simply absent.
 let autoUpdater = null;
@@ -122,23 +152,24 @@ function createWindow() {
 
   // Premium offline screen instead of Chromium's error page.
   mainWindow.webContents.on("did-fail-load", (e, errorCode, _desc, _url, isMainFrame) => {
-    if (isMainFrame && errorCode !== -3) {
+    if (isMainFrame && errorCode !== -3 && mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.loadFile(path.join(__dirname, "error.html"), { query: { u: APP_URL } });
       reveal();
     }
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (!url.startsWith(APP_URL)) {
-      shell.openExternal(url);
-      return { action: "deny" };
-    }
-    return { action: "allow" };
+    if (isAllowedUrl(url)) return { action: "allow" };
+    openExternalSafe(url); // https/mailto/tel go to the OS browser; anything else is dropped
+    return { action: "deny" };
   });
+  // Deny-by-default: the shell itself may only ever navigate to allowlisted
+  // hosts. Everything else (including file:, custom schemes) is blocked, and
+  // safe web links open in the OS browser instead.
   mainWindow.webContents.on("will-navigate", (e, url) => {
-    if (!url.startsWith(APP_URL) && /^https?:\/\//.test(url) && !url.includes("supabase.co") && !url.startsWith("file:")) {
+    if (!isAllowedUrl(url)) {
       e.preventDefault();
-      shell.openExternal(url);
+      openExternalSafe(url);
     }
   });
 
@@ -222,12 +253,30 @@ function windowsLocation() {
   });
 }
 
-ipcMain.handle("veylmont:get-location", async () => {
+// One PowerShell process at a time: rapid repeat calls (e.g. a render loop)
+// share the in-flight fix instead of spawning a process storm.
+let geoInflight = null;
+
+ipcMain.handle("veylmont:get-location", async (event) => {
+  // Only the CRM origin may read the device location through the bridge.
+  try {
+    const host = new URL(event.senderFrame.url).hostname;
+    if (!ALLOWED_HOSTS.has(host)) return { error: "GEO_DENIED" };
+  } catch {
+    return { error: "GEO_DENIED" };
+  }
+
   // macOS/Linux: Chromium geolocation generally works there — tell the page
   // to fall back to navigator.geolocation.
   if (process.platform !== "win32") return { error: "GEO_FALLBACK" };
+
+  if (!geoInflight) {
+    geoInflight = windowsLocation().finally(() => {
+      setTimeout(() => (geoInflight = null), 2000);
+    });
+  }
   try {
-    return await windowsLocation();
+    return await geoInflight;
   } catch (e) {
     return { error: e.message || "GEO_UNAVAILABLE" };
   }
@@ -240,7 +289,18 @@ if (!app.requestSingleInstanceLock()) {
   app.on("second-instance", showMain);
 
   app.whenReady().then(() => {
-    session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(true));
+    // Origin-scoped permissions: only the CRM origin gets anything, and only
+    // what it actually uses. Geolocation goes through our native bridge, so
+    // Chromium's own geolocation permission isn't needed at all.
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => {
+      try {
+        const host = new URL(details.requestingUrl || "").hostname;
+        const allowedPerms = ["notifications", "media", "clipboard-sanitized-write", "fullscreen"];
+        callback(ALLOWED_HOSTS.has(host) && allowedPerms.includes(permission));
+      } catch {
+        callback(false);
+      }
+    });
     buildMenu();
     createTray();
     createSplash();

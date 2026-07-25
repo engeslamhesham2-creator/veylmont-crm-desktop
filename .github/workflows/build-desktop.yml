@@ -8,6 +8,12 @@ on:
 permissions:
   contents: write
 
+# One release build at a time — overlapping tag pushes must not race on the
+# same GitHub release.
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
+
 jobs:
   build:
     strategy:
@@ -19,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
+      - run: npm ci
       # On a tag push -> build AND publish to GitHub Releases (generates the
       # latest.yml / latest-mac.yml feed that electron-updater reads).
       # On manual run -> build only, upload as artifacts.
