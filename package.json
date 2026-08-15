@@ -1,6 +1,6 @@
 {
   "name": "veylmont-crm-desktop",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Veylmont CRM — desktop app (Windows & macOS)",
   "main": "main.js",
   "author": "Veylmont",
